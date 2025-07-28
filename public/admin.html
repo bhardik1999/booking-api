@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>License Key Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h2 { color: #333; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    th {
+      background: #007bff;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px 0;
+    }
+    .expired {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>🔐 Admin Panel – Manage License Keys</h2>
+
+  <label>Admin Secret:</label>
+  <input type="password" id="secret" placeholder="Enter admin key" />
+  <button onclick="fetchKeys()">🔄 Fetch Keys</button>
+  <button onclick="generateKey()">➕ Generate New Key</button>
+
+  <div id="output"></div>
+
+  <script>
+    const API = "https://booking-api-k8zh.onrender.com";
+
+    async function fetchKeys() {
+      const secret = document.getElementById("secret").value;
+      const res = await fetch(`${API}/admin/list-keys`, {
+        headers: {
+          "x-admin-secret": secret
+        }
+      });
+
+      const json = await res.json();
+
+      if (json.status !== "success") {
+        return alert("❌ Failed: " + (json.message || "Invalid secret"));
+      }
+
+      const rows = json.data.map((k, i) => {
+        const expired = k.status === "invalid" ? "❌ Revoked" :
+          (k.expiryDate && new Date(k.expiryDate) < new Date()) ? "⏰ Expired" : "✅ Active";
+
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${k.key}</td>
+            <td>${expired}</td>
+            <td>${k.usageCount || 0}/${k.usageLimit || "-"}</td>
+            <td>${new Date(k.createdAt).toLocaleString()}</td>
+            <td><button onclick="revokeKey('${k.key}')">❌ Revoke</button></td>
+          </tr>
+        `;
+      }).join("");
+
+      document.getElementById("output").innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Key</th>
+              <th>Status</th>
+              <th>Usage</th>
+              <th>Created</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    async function revokeKey(key) {
+      const secret = document.getElementById("secret").value;
+      const confirmed = confirm(`Are you sure you want to revoke this key?\n${key}`);
+      if (!confirmed) return;
+
+      const res = await fetch(`${API}/admin/revoke-key`, {
+        method: "POST",
+        headers: {
+          "x-admin-secret": secret,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ key })
+      });
+
+      const json = await res.json();
+      alert(json.message || json.status);
+      fetchKeys(); // refresh list
+    }
+
+    async function generateKey() {
+      const secret = document.getElementById("secret").value;
+      const res = await fetch(`${API}/admin/generate-key`, {
+        method: "POST",
+        headers: {
+          "x-admin-secret": secret
+        }
+      });
+
+      const json = await res.json();
+      if (json.status === "success") {
+        alert("✅ Key created:\n" + json.key);
+        fetchKeys(); // refresh list
+      } else {
+        alert("❌ Failed: " + (json.message || "Unknown error"));
+      }
+    }
+  </script>
+</body>
+</html>

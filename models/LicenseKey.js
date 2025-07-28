@@ -1,12 +1,30 @@
 const mongoose = require("mongoose");
 
 const licenseSchema = new mongoose.Schema({
-  key: { type: String, required: true, unique: true },
-  status: { type: String, enum: ["valid", "invalid"], default: "valid" },
-  createdAt: { type: Date, default: Date.now },
-  expiresAt: { type: Date }, // optional expiry
-  usageLimit: { type: Number, default: 1 },
-  usageCount: { type: Number, default: 0 }
+  key: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  status: {
+    type: String,
+    enum: ["valid", "invalid"],
+    default: "valid",
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  expiryDate: {
+    type: Date, // Optional expiration
+  },
+  usageLimit: {
+    type: Number, // Optional max usage
+  },
+  usageCount: {
+    type: Number,
+    default: 0,
+  }
 });
 
-module.exports = mongoose.model("LicenseKey", licenseSchema);
+module.exports = mongoose.models.LicenseKey || mongoose.model("LicenseKey", licenseSchema);

@@ -1,45 +1,59 @@
 const express = require("express");
 const router = express.Router();
+const LicenseKey = require("../models/Licensekey");
 const crypto = require("crypto");
-const LicenseKey = require("../models/LicenseKey");
 
-// Admin authentication middleware
-const adminAuth = (req, res, next) => {
-  const adminSecret = process.env.ADMIN_SECRET;
-  const clientSecret = req.headers["x-admin-secret"];
-  if (!clientSecret || clientSecret !== adminSecret) {
-    return res.status(403).json({ status: "unauthorized" });
+// Admin secret
+const ADMIN_SECRET = process.env.ADMIN_SECRET || "supersecureadminkey";
+
+// Middleware to validate admin
+function verifyAdmin(req, res, next) {
+  const adminSecret = req.headers["x-admin-secret"];
+  if (adminSecret !== ADMIN_SECRET) {
+    return res.status(401).json({ status: "error", message: "Unauthorized" });
   }
   next();
-};
+}
 
-// 🔑 Generate new key
-router.post("/generate-key", adminAuth, async (req, res) => {
+// POST /admin/generate-key
+router.post("/generate-key", verifyAdmin, async (req, res) => {
+  const { expiryDays, usageLimit } = req.body;
+
   const key = crypto.randomBytes(16).toString("hex");
 
+  const newKey = new LicenseKey({
+    key,
+    status: "valid",
+    expiryDate: expiryDays ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000) : undefined,
+    usageLimit: usageLimit || undefined
+  });
+
   try {
-    const newKey = new LicenseKey({ key });
     await newKey.save();
     res.json({ status: "success", key });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    console.error("❌ Key save failed:", err);
+    res.status(500).json({ status: "error", message: "Failed to generate key" });
   }
 });
 
-// 📋 List all keys
-router.get("/list-keys", adminAuth, async (req, res) => {
+// GET /admin/list-keys
+router.get("/list-keys", verifyAdmin, async (req, res) => {
   try {
     const keys = await LicenseKey.find().sort({ createdAt: -1 });
     res.json({ status: "success", data: keys });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    res.status(500).json({ status: "error", message: "Failed to fetch keys" });
   }
 });
 
-// ❌ Revoke a key
-router.post("/revoke-key", adminAuth, async (req, res) => {
+// POST /admin/revoke-key
+router.post("/revoke-key", verifyAdmin, async (req, res) => {
   const { key } = req.body;
-  if (!key) return res.status(400).json({ status: "error", message: "Key is required" });
+
+  if (!key) {
+    return res.status(400).json({ status: "error", message: "Key is required" });
+  }
 
   try {
     const updated = await LicenseKey.findOneAndUpdate(
@@ -52,9 +66,9 @@ router.post("/revoke-key", adminAuth, async (req, res) => {
       return res.status(404).json({ status: "error", message: "Key not found" });
     }
 
-    res.json({ status: "success", message: "Key revoked", key: updated });
+    res.json({ status: "success", message: "Key revoked" });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    res.status(500).json({ status: "error", message: "Failed to revoke key" });
   }
 });
 

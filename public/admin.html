@@ -18,6 +18,7 @@
     th, td {
       padding: 10px;
       border: 1px solid #ccc;
+      text-align: center;
     }
     th {
       background: #007bff;
@@ -26,11 +27,23 @@
     tr:nth-child(even) {
       background: #f9f9f9;
     }
-    input, button {
+    input, select, button {
       padding: 10px;
-      margin: 10px 0;
+      margin: 10px 5px 0 0;
     }
     .expired {
+      color: red;
+      font-weight: bold;
+    }
+    .status-active {
+      color: green;
+      font-weight: bold;
+    }
+    .status-expired {
+      color: orange;
+      font-weight: bold;
+    }
+    .status-revoked {
       color: red;
       font-weight: bold;
     }
@@ -41,8 +54,16 @@
 
   <label>Admin Secret:</label>
   <input type="password" id="secret" placeholder="Enter admin key" />
-  <button onclick="fetchKeys()">🔄 Fetch Keys</button>
+
+  <label>Duration:</label>
+  <select id="duration">
+    <option value="7">7 Days</option>
+    <option value="30" selected>1 Month</option>
+    <option value="90">3 Months</option>
+  </select>
+
   <button onclick="generateKey()">➕ Generate New Key</button>
+  <button onclick="fetchKeys()">🔄 Fetch Keys</button>
 
   <div id="output"></div>
 
@@ -64,16 +85,28 @@
       }
 
       const rows = json.data.map((k, i) => {
-        const expired = k.status === "invalid" ? "❌ Revoked" :
-          (k.expiryDate && new Date(k.expiryDate) < new Date()) ? "⏰ Expired" : "✅ Active";
+        const now = new Date();
+        const exp = k.expiryDate ? new Date(k.expiryDate) : null;
+
+        let statusClass = "status-active";
+        let statusText = "✅ Active";
+
+        if (k.status === "invalid") {
+          statusClass = "status-revoked";
+          statusText = "❌ Revoked";
+        } else if (exp && exp < now) {
+          statusClass = "status-expired";
+          statusText = "⏰ Expired";
+        }
 
         return `
           <tr>
             <td>${i + 1}</td>
             <td>${k.key}</td>
-            <td>${expired}</td>
+            <td class="${statusClass}">${statusText}</td>
             <td>${k.usageCount || 0}/${k.usageLimit || "-"}</td>
-            <td>${new Date(k.createdAt).toLocaleString()}</td>
+            <td>${new Date(k.createdAt).toLocaleDateString()}</td>
+            <td>${k.expiryDate ? new Date(k.expiryDate).toLocaleDateString() : "-"}</td>
             <td><button onclick="revokeKey('${k.key}')">❌ Revoke</button></td>
           </tr>
         `;
@@ -88,6 +121,7 @@
               <th>Status</th>
               <th>Usage</th>
               <th>Created</th>
+              <th>Expires</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -112,22 +146,26 @@
 
       const json = await res.json();
       alert(json.message || json.status);
-      fetchKeys(); // refresh list
+      fetchKeys();
     }
 
     async function generateKey() {
       const secret = document.getElementById("secret").value;
+      const duration = parseInt(document.getElementById("duration").value); // in days
+
       const res = await fetch(`${API}/admin/generate-key`, {
         method: "POST",
         headers: {
-          "x-admin-secret": secret
-        }
+          "x-admin-secret": secret,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ duration })
       });
 
       const json = await res.json();
       if (json.status === "success") {
         alert("✅ Key created:\n" + json.key);
-        fetchKeys(); // refresh list
+        fetchKeys();
       } else {
         alert("❌ Failed: " + (json.message || "Unknown error"));
       }

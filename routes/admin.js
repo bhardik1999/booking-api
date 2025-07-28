@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const LicenseKey = require("../models/Licensekey");
+const LicenseKey = require("../models/LicenseKey");
 const crypto = require("crypto");
 
 // Admin secret

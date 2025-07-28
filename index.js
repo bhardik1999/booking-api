@@ -1,30 +1,54 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config(); // For .env configs
 
 const app = express();
-app.use(cors());
+const port = process.env.PORT || 3000;
+
+// Middleware
 app.use(express.json());
+app.use(cors());
 
-// MongoDB connect
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('DB Connected'));
+// MongoDB model
+const LicenseKey = require("./models/LicenseKey");
 
-// Schema
-const LicenseKey = require('./models/LicenseKey');
-
-// Routes
-app.get('/api/verify', async (req, res) => {
+// ✅ Verify License Key API
+app.get("/verify", async (req, res) => {
   const key = req.query.key;
-  const found = await LicenseKey.findOne({ key, status: 'active' });
-  return res.json({ valid: !!found });
+
+  if (!key) {
+    return res.status(400).json({ status: "error", message: "Key is missing" });
+  }
+
+  try {
+    const match = await LicenseKey.findOne({ key });
+
+    if (match && match.status === "valid") {
+      return res.json({ status: "valid" });
+    } else {
+      return res.json({ status: "invalid" });
+    }
+  } catch (err) {
+    console.error("Verification error:", err);
+    return res.status(500).json({ status: "error", message: "Server error" });
+  }
 });
 
-app.post('/api/add', async (req, res) => {
-  const { key, issuedTo } = req.body;
-  const newKey = new LicenseKey({ key, issuedTo });
-  await newKey.save();
-  res.json({ success: true });
+// ✅ Default test route
+app.get("/", (req, res) => {
+  res.send("🚀 Booking API Live");
 });
 
-app.listen(3000, () => console.log('Running on port 3000'));
+// DB Connection
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log("✅ DB Connected");
+  app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
+})
+.catch((err) => {
+  console.error("❌ MongoDB connection failed:", err.message);
+});

@@ -1,8 +1,20 @@
-const mongoose = require('mongoose');
-const LicenseKeySchema = new mongoose.Schema({
-  key: { type: String, unique: true },
-  status: { type: String, default: 'active' },
-  issuedTo: String,
-  issuedAt: { type: Date, default: Date.now }
+const mongoose = require("mongoose");
+
+const licenseSchema = new mongoose.Schema({
+  key: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  status: {
+    type: String,
+    enum: ["valid", "invalid"],
+    default: "valid",
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
-module.exports = mongoose.model('LicenseKey', LicenseKeySchema);
+
+module.exports = mongoose.model("LicenseKey", licenseSchema);

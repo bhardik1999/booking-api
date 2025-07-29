@@ -10,6 +10,8 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || "supersecureadminkey";
 // Middleware: validate admin auth
 function verifyAdmin(req, res, next) {
   const adminSecret = req.headers["x-admin-secret"];
+  console.log("Received:", adminSecret);
+  console.log("Expected:", ADMIN_SECRET)
   if (adminSecret !== ADMIN_SECRET) {
     return res.status(401).json({ status: "error", message: "Unauthorized: Invalid admin secret" });
   }

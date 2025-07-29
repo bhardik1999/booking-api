@@ -71,7 +71,7 @@
     const API = "https://booking-api-k8zh.onrender.com";
 
     async function fetchKeys() {
-      const secret = document.getElementById("secret").value;
+      const secret = document.getElementById("secret").value.trim();
       const res = await fetch(`${API}/admin/list-keys`, {
         headers: {
           "x-admin-secret": secret

@@ -55,6 +55,9 @@
   <label>Admin Secret:</label>
   <input type="password" id="secret" placeholder="Enter admin key" />
 
+  <label>Username:</label>
+  <input type="text" id="username" placeholder="Enter username (required)" />
+
   <label>Duration:</label>
   <select id="duration">
     <option value="7">7 Days</option>
@@ -104,6 +107,7 @@
             <td>${i + 1}</td>
             <td>${k.key}</td>
             <td class="${statusClass}">${statusText}</td>
+            <td>${k.username || "-"}</td>
             <td>${k.usageCount || 0}/${k.usageLimit || "-"}</td>
             <td>${new Date(k.createdAt).toLocaleDateString()}</td>
             <td>${k.expiryDate ? new Date(k.expiryDate).toLocaleDateString() : "-"}</td>
@@ -119,6 +123,7 @@
               <th>#</th>
               <th>Key</th>
               <th>Status</th>
+              <th>User</th>
               <th>Usage</th>
               <th>Created</th>
               <th>Expires</th>
@@ -150,8 +155,13 @@
     }
 
     async function generateKey() {
-      const secret = document.getElementById("secret").value;
-      const duration = parseInt(document.getElementById("duration").value); // in days
+      const secret = document.getElementById("secret").value.trim();
+      const username = document.getElementById("username").value.trim();
+      const expiryDays = parseInt(document.getElementById("duration").value);
+
+      if (!secret || !username) {
+        return alert("❌ Please fill out admin secret and username.");
+      }
 
       const res = await fetch(`${API}/admin/generate-key`, {
         method: "POST",
@@ -159,7 +169,7 @@
           "x-admin-secret": secret,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ duration })
+        body: JSON.stringify({ expiryDays, username })
       });
 
       const json = await res.json();
